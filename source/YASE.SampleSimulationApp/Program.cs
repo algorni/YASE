@@ -30,7 +30,7 @@ namespace YASE.SampleSimulationApp
         //private static SimulationPlan<CarTrackingKmEvent> createOneTimeSimulationPlan()
         private static SimulationPlan createOneTimeSimulationPlan()
         {
-            long numberOfItem = 1000;
+            long numberOfItem = 10;
 
             double rndMinKm = 1.0;
             double rndMaxKm = 1.0;
@@ -45,6 +45,8 @@ namespace YASE.SampleSimulationApp
 
             //create a simulation plan            
             SimulationPlan carTrackingKmSimulationPlan = new SimulationPlan();
+
+            carTrackingKmSimulationPlan.SimulationLoops = 1000;
 
             carTrackingKmSimulationPlan.PlanTiming = PlanTimingEnum.OffsetFromSimulationStart;
             

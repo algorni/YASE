@@ -26,7 +26,7 @@ namespace YASE.Core
         /// <summary>
         /// Loop Simulation is valid only for Offsett Plans not exact time
         /// </summary>
-        public bool? LoopSimulation { get; set; }
+        public int? SimulationLoops { get; set; }
 
         /// <summary>
         /// the list of planned events

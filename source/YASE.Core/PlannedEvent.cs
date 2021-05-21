@@ -8,6 +8,16 @@ namespace YASE.Core
     public class PlannedEvent 
     {
         /// <summary>
+        /// Guid of the simulation run
+        /// </summary>
+        public Guid SimulationRun { get; set; }
+
+        /// <summary>
+        /// Simulation Loop
+        /// </summary>
+        public int? SimulationLoop { get; set; }
+
+        /// <summary>
         /// the source id (device id? entity? element...)
         /// </summary>
         public string SourceId { get; set; }

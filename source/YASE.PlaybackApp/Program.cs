@@ -56,16 +56,15 @@ namespace YASE.PlaybackApp
             SimulationRunner simulationRunner = new SimulationRunner(simulationPlan, doSomethingWithTheEventAsync);
 
             var cts = new CancellationTokenSource();
-
-            Console.WriteLine($"Starting the simulation...");
-
-            simulationRunner.StartRunner(cts.Token);
-
-
-            // Wait until the app unloads or is cancelled
             AssemblyLoadContext.Default.Unloading += (ctx) => cts.Cancel();
             Console.CancelKeyPress += (sender, cpe) => cts.Cancel();
 
+
+            Console.WriteLine($"Starting the simulation...");
+            await simulationRunner.StartRunner(cts.Token);
+
+
+            // Wait until the app unloads or is cancelled
             WhenCancelled(cts.Token).Wait();
 
             Console.WriteLine("End program loop.");

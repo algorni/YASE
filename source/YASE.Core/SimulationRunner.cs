@@ -28,8 +28,6 @@ namespace YASE.Core
 
         private CancellationToken _cancellationToken;
 
-        private Timer _simulationTick = null;
-
 
         /// <summary>
         /// ctor
@@ -47,46 +45,53 @@ namespace YASE.Core
         /// </summary>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public void StartRunner(CancellationToken cancellationToken)
+        public async Task StartRunner(CancellationToken cancellationToken)
         {
             _cancellationToken = cancellationToken;
 
-            Task.Run(() =>
+            await Task.Run(() =>
                 {
+                    //generated a new guid of the simulation
+                    Guid simulationRun = Guid.NewGuid();
+
                     //pre-build the sequence of the 
+                    int simulationLoop = _simulationPlan.SimulationLoops.HasValue ? _simulationPlan.SimulationLoops.Value : 1;
+                                      
+                    //the start time of the simulation is provided by the plan OR it's just the actual time 
+                    DateTime lastSimulationStartTime = _simulationPlan.SimulationStartTime.HasValue? _simulationPlan.SimulationStartTime.Value : getNowProxSec();
 
-                    List<PlannedEvent> preGeneratedEvents = buildEventsPipeline();
+                    for (int currentLoop = 0; currentLoop < simulationLoop; currentLoop++)
+                    {
+                        List<PlannedEvent> preGeneratedEvents = buildEventsPipeline(lastSimulationStartTime, simulationRun, currentLoop);
 
-                    //to see if need to reverse the order or not
-                    Queue<PlannedEvent> preGeneratedEventQueue = new Queue<PlannedEvent>(preGeneratedEvents);
+                        //to see if need to reverse the order or not
+                        Queue<PlannedEvent> preGeneratedEventQueue = new Queue<PlannedEvent>(preGeneratedEvents);
 
-                    playbackEventPipeline(preGeneratedEventQueue);
+                        //ready for next loop in case...
+                        lastSimulationStartTime = preGeneratedEventQueue.Last().EventTime.Value;
 
-                   
-                    return;
+                        playbackEventPipeline(preGeneratedEventQueue);
+                    }                                 
+                    
 
                 }, cancellationToken);
         }
 
+       
 
         /// <summary>
         /// calculate the generated event list!
         /// </summary>
         /// <returns></returns>
-        private List<PlannedEvent> buildEventsPipeline()
+        private List<PlannedEvent> buildEventsPipeline(DateTime currentsimulationTime, Guid simulationRun, int simulationLoop)
         {
             List<PlannedEvent> preGeneratedEvents = null;
 
             if (_simulationPlan.PlanTiming == PlanTimingEnum.OffsetFromSimulationStart)
             {
                 preGeneratedEvents = new List<PlannedEvent>();
-
-                //the start time of the simulation is provided by the plan OR it's just the actual time 
-                DateTime simulationStartTime = _simulationPlan.SimulationStartTime.HasValue? _simulationPlan.SimulationStartTime.Value : DateTime.UtcNow;
-
+              
                 //now loop over all the planned Items and generate the EventTime and OriginalEventTime according to their offsett & the simulation start time
-
-                DateTime currentsimulationTime = simulationStartTime;
 
                 foreach (var simulationItem in _simulationPlan.PlannedEvents)
                 {
@@ -105,6 +110,9 @@ namespace YASE.Core
                     simulationItem.EventTime = eventTime;
                     simulationItem.OriginalEventTime = eventTime;
 
+                    simulationItem.SimulationRun = simulationRun;
+                    simulationItem.SimulationLoop = _simulationPlan.SimulationLoops.HasValue ? simulationLoop : (int?)null;
+
                     //and add into the 
                     preGeneratedEvents.Add(simulationItem);
                 }
@@ -119,16 +127,26 @@ namespace YASE.Core
             return preGeneratedEvents;
         }
 
+        private DateTime getNowProxSec()
+        {
+            var now = DateTime.UtcNow;
+
+            var retNow = new DateTime(now.Year, now.Month, now.Day, now.Hour, now.Minute, now.Second);
+
+            return retNow;
+        }
 
         private void playbackEventPipeline(Queue<PlannedEvent> preGeneratedEventQueue)
         {
             //we look for event in the "past" respect Utc Now and we generate all of them immediately (with 25ms of delay to avoid huring downstream services)
-            PlannedEvent preGeneratedEvent = preGeneratedEventQueue.Dequeue();
+            PlannedEvent preGeneratedEvent = null;
 
-            do
+            while (preGeneratedEventQueue.Count > 0)
             {
                 if (_cancellationToken.IsCancellationRequested)
                     break;
+
+                preGeneratedEvent = preGeneratedEventQueue.Dequeue();
 
                 if (preGeneratedEvent.EventTime.Value < DateTime.UtcNow)
                 {
@@ -150,12 +168,7 @@ namespace YASE.Core
                 {
                     Console.WriteLine($"An exception happened while firing the consume event delegate\n{ex.ToString()}");
                 }
-
-                //next item please...
-                preGeneratedEvent = preGeneratedEventQueue.Dequeue();
-            }
-            while (preGeneratedEventQueue.Count > 0);
-
+            }            
         }
         
     }
