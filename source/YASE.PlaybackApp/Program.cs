@@ -90,12 +90,16 @@ namespace YASE.PlaybackApp
         {
             var eventJson = generatedEvent.ToJSON();
 
-            // Create a batch of events 
-            EventDataBatch eventBatch = await eventHubProducerClient.CreateBatchAsync();
-
+            // Create a batch of events using the SOURCE ID as the Partition
+            EventDataBatch eventBatch = await eventHubProducerClient.CreateBatchAsync( 
+                new CreateBatchOptions() {  PartitionKey = generatedEvent.SourceId});
+                   
             // Add events to the batch. An event is a represented by a collection of bytes and metadata. 
-            eventBatch.TryAdd(new EventData(Encoding.UTF8.GetBytes(eventJson)));
+            var eventData = new EventData(Encoding.UTF8.GetBytes(eventJson));
+          
+            eventBatch.TryAdd(eventData);
 
+            
             await eventHubProducerClient.SendAsync(eventBatch);
 
             Console.WriteLine($"{DateTime.UtcNow.ToString()}\n{eventJson}");
