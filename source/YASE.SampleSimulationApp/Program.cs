@@ -62,7 +62,14 @@ namespace YASE.SampleSimulationApp
 
                 plannedEvent.EventOffset = new TimeSpan(rndMinSpan.Ticks + (long)((rndMaxSpan.Ticks - rndMinSpan.Ticks) * rnd.NextDouble()));
 
-                carTrackingKmSimulationPlan.PlannedEvents.Add(plannedEvent);
+                plannedEvent.TrackName = "SimulatedCars";
+
+                if (!carTrackingKmSimulationPlan.PlannedEventsTracks.ContainsKey("SimulatedCars"))
+                {
+                    carTrackingKmSimulationPlan.PlannedEventsTracks.Add("SimulatedCars", new System.Collections.Generic.List<PlannedEvent>());
+                }
+
+                carTrackingKmSimulationPlan.PlannedEventsTracks["SimulatedCars"].Add(plannedEvent);
             }
 
             return carTrackingKmSimulationPlan;

@@ -18,6 +18,11 @@ namespace YASE.Core
         public int? SimulationLoop { get; set; }
 
         /// <summary>
+        /// Simulation Track Name (you can have multiple track per a Plan
+        /// </summary>
+        public string TrackName { get; set; }
+
+        /// <summary>
         /// the source id (device id? entity? element...)
         /// </summary>
         public string SourceId { get; set; }

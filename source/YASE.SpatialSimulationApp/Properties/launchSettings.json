@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "YASE.SpatialSimulationApp": {
+      "commandName": "Project",
+      "commandLineArgs": "geoJsonFile=\"c:\\\\tmp\\\\trackerSimulation.geojson\""
+    }
+  }
+}

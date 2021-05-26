@@ -61,11 +61,14 @@ namespace YASE.PlaybackApp
 
 
             Console.WriteLine($"Starting the simulation...");
-            await simulationRunner.StartRunner(cts.Token);
+            var runnerTask = simulationRunner.StartRunner(cts.Token);
 
 
             // Wait until the app unloads or is cancelled
-            WhenCancelled(cts.Token).Wait();
+            var cancelTask =  WhenCancelled(cts.Token);
+
+
+            await Task.WhenAll(runnerTask, cancelTask);
 
             Console.WriteLine("End program loop.");
         }

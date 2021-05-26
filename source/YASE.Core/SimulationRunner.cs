@@ -49,32 +49,51 @@ namespace YASE.Core
         {
             _cancellationToken = cancellationToken;
 
-            await Task.Run(() =>
+            //generated a new guid of the simulation
+            Guid simulationRun = Guid.NewGuid();
+
+            //pre-build the sequence of the 
+            int simulationLoop = _simulationPlan.SimulationLoops.HasValue ? _simulationPlan.SimulationLoops.Value : 1;
+
+            //the start time of the simulation is provided by the plan OR it's just the actual time 
+            DateTime lastSimulationStartTime = _simulationPlan.SimulationStartTime.HasValue ? _simulationPlan.SimulationStartTime.Value : getNowProxSec();
+                  
+            for (int currentLoop = 0; currentLoop < simulationLoop; currentLoop++)
+            {
+                List<Queue<PlannedEvent>> preGeneratedEventQueueByTrack = new List<Queue<PlannedEvent>>();
+                                                
+                DateTime nextLoopLastSimulationStartTime = lastSimulationStartTime;
+
+
+                foreach (var track in _simulationPlan.PlannedEventsTracks)
                 {
-                    //generated a new guid of the simulation
-                    Guid simulationRun = Guid.NewGuid();
+                    List<PlannedEvent> preGeneratedEvents = buildEventsPipeline(
+                        _simulationPlan.PlanTiming, track.Value, lastSimulationStartTime, simulationRun, currentLoop);
 
-                    //pre-build the sequence of the 
-                    int simulationLoop = _simulationPlan.SimulationLoops.HasValue ? _simulationPlan.SimulationLoops.Value : 1;
-                                      
-                    //the start time of the simulation is provided by the plan OR it's just the actual time 
-                    DateTime lastSimulationStartTime = _simulationPlan.SimulationStartTime.HasValue? _simulationPlan.SimulationStartTime.Value : getNowProxSec();
+                    var lastEventTime = preGeneratedEvents.Last().EventTime.Value;
 
-                    for (int currentLoop = 0; currentLoop < simulationLoop; currentLoop++)
-                    {
-                        List<PlannedEvent> preGeneratedEvents = buildEventsPipeline(lastSimulationStartTime, simulationRun, currentLoop);
+                    if (lastEventTime > nextLoopLastSimulationStartTime)
+                        nextLoopLastSimulationStartTime = lastEventTime;
 
-                        //to see if need to reverse the order or not
-                        Queue<PlannedEvent> preGeneratedEventQueue = new Queue<PlannedEvent>(preGeneratedEvents);
+                    preGeneratedEventQueueByTrack.Add(new Queue<PlannedEvent>(preGeneratedEvents));
+                }
 
-                        //ready for next loop in case...
-                        lastSimulationStartTime = preGeneratedEventQueue.Last().EventTime.Value;
+                //ready for next loop in case...
+                lastSimulationStartTime = nextLoopLastSimulationStartTime;
 
-                        playbackEventPipeline(preGeneratedEventQueue);
-                    }                                 
-                    
 
-                }, cancellationToken);
+                List<Task> playbackTask = new List<Task>();
+
+                //now actually playback them in parallell and wait for all of them
+                foreach (var preGeneratedTrackQueue in preGeneratedEventQueueByTrack)
+                {
+                    var runTask = Task.Run(() => playbackEventPipeline(preGeneratedTrackQueue), cancellationToken);
+
+                    playbackTask.Add(runTask);
+                }
+
+                await Task.WhenAll(playbackTask);
+            }
         }
 
        
@@ -83,17 +102,17 @@ namespace YASE.Core
         /// calculate the generated event list!
         /// </summary>
         /// <returns></returns>
-        private List<PlannedEvent> buildEventsPipeline(DateTime currentsimulationTime, Guid simulationRun, int simulationLoop)
+        private List<PlannedEvent> buildEventsPipeline(PlanTimingEnum planTiming, List<PlannedEvent> plannedEventTrack, DateTime currentsimulationTime, Guid simulationRun, int? simulationLoop)
         {
             List<PlannedEvent> preGeneratedEvents = null;
 
-            if (_simulationPlan.PlanTiming == PlanTimingEnum.OffsetFromSimulationStart)
+            if (planTiming == PlanTimingEnum.OffsetFromSimulationStart)
             {
                 preGeneratedEvents = new List<PlannedEvent>();
               
                 //now loop over all the planned Items and generate the EventTime and OriginalEventTime according to their offsett & the simulation start time
 
-                foreach (var simulationItem in _simulationPlan.PlannedEvents)
+                foreach (var simulationItem in plannedEventTrack)
                 {
                     if (!simulationItem.EventOffset.HasValue)
                     {
@@ -111,17 +130,17 @@ namespace YASE.Core
                     simulationItem.OriginalEventTime = eventTime;
 
                     simulationItem.SimulationRun = simulationRun;
-                    simulationItem.SimulationLoop = _simulationPlan.SimulationLoops.HasValue ? simulationLoop : (int?)null;
+                    simulationItem.SimulationLoop = simulationLoop.HasValue ? simulationLoop : (int?)null;
 
                     //and add into the 
                     preGeneratedEvents.Add(simulationItem);
                 }
             }
 
-            if (_simulationPlan.PlanTiming == PlanTimingEnum.ExactTimeAccordingToPlan)
+            if (planTiming == PlanTimingEnum.ExactTimeAccordingToPlan)
             {
                 //this is the simple one...   planned event should have already their time configured to be used.
-                preGeneratedEvents = _simulationPlan.PlannedEvents;
+                preGeneratedEvents = plannedEventTrack;
             }
 
             return preGeneratedEvents;

@@ -10,7 +10,7 @@ namespace YASE.Core
     {
         public SimulationPlan()
         {
-            PlannedEvents = new List<PlannedEvent>();
+            PlannedEventsTracks = new Dictionary<string, List<PlannedEvent>>();
         }
 
         /// <summary>
@@ -29,12 +29,9 @@ namespace YASE.Core
         public int? SimulationLoops { get; set; }
 
         /// <summary>
-        /// the list of planned events
+        /// the dictionary with the list of planned events
         /// </summary>
-        public List<PlannedEvent> PlannedEvents { get; set; }
-
-
-
+        public Dictionary<string, List<PlannedEvent>> PlannedEventsTracks { get; set; }
 
 
 
