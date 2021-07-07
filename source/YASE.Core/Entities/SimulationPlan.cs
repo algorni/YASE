@@ -3,14 +3,15 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text;
+using YASE.Core.Entities;
 
-namespace YASE.Core
+namespace YASE.Core.Entities
 {
     public class SimulationPlan
     {
         public SimulationPlan()
         {
-            PlannedEventsTracks = new Dictionary<string, List<PlannedEvent>>();
+            PlannedEventsTracks = new Dictionary<string, List<BaseEvent>>();
         }
 
         /// <summary>
@@ -21,7 +22,7 @@ namespace YASE.Core
         /// <summary>
         /// if null --> simulation will start from the beginning of the sequence otherwise it will start with the first item after that time.
         /// </summary>
-        public DateTime? SimulationStartTime { get; set; }
+        //public DateTime? SimulationStartTime { get; set; }
 
         /// <summary>
         /// Loop Simulation is valid only for Offsett Plans not exact time
@@ -31,7 +32,7 @@ namespace YASE.Core
         /// <summary>
         /// the dictionary with the list of planned events
         /// </summary>
-        public Dictionary<string, List<PlannedEvent>> PlannedEventsTracks { get; set; }
+        public Dictionary<string, List<BaseEvent>> PlannedEventsTracks { get; set; }
 
 
 
@@ -64,7 +65,7 @@ namespace YASE.Core
         /// <returns></returns>
         public static SimulationPlan FromJson(string json)
         {
-            SimulationPlan  me = Newtonsoft.Json.JsonConvert.DeserializeObject<SimulationPlan>(json);
+            SimulationPlan  me = Newtonsoft.Json.JsonConvert.DeserializeObject<SimulationPlan>(json, new JSONEventConverter());
 
             return me;
         }

@@ -4,8 +4,9 @@ using Newtonsoft.Json;
 using System;
 using System.IO;
 using YASE.Core;
+using YASE.Core.Entities;
 
-namespace YASE.SpatialSimulationApp
+namespace SpatialSimulationConverter
 {
     class Program
     {
@@ -13,17 +14,18 @@ namespace YASE.SpatialSimulationApp
 
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello Simulation!");
+            Console.WriteLine("Hello SpatialSimulationConverter!");
+            Console.WriteLine("------------------------------");
 
-
-            configuration = new ConfigurationBuilder()
+           configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddCommandLine(args)
             .Build();
 
-
             string geoJsonFile = configuration.GetValue<string>("geoJsonFile");
+
+            string simulationPlanFile = configuration.GetValue<string>("simulationPlanFile");
 
             var geoJson = File.ReadAllText(geoJsonFile);
 
@@ -34,7 +36,7 @@ namespace YASE.SpatialSimulationApp
 
             var simulationPlanJson = simulationPlan.GetJSON();
 
-            File.WriteAllText("c:\\tmp\\spatialSimulation.json", simulationPlanJson);
+            File.WriteAllText(simulationPlanFile, simulationPlanJson);
         }
 
 
@@ -57,31 +59,39 @@ namespace YASE.SpatialSimulationApp
             
             foreach (var gpsTrackFeature in featureCollection.Features)
             {
-                int index = 0;
-
+               
+                //the structure of a Line GeoJSON from QGIS include a MultiLineString
                 if (gpsTrackFeature.Geometry is GeoJSON.Net.Geometry.MultiLineString)
                 {
                     var multiLineString = gpsTrackFeature.Geometry as GeoJSON.Net.Geometry.MultiLineString;
 
+                    //..which have a List of LineString
                     foreach (var lineString in multiLineString.Coordinates)
                     {
+                        //...every line string has a list of coordinate.
+                        //here i'm just adding ALL the position one after the other...   keeping it easy...
                         foreach (var coordinate in lineString.Coordinates)
                         {
-                            PlannedEvent plannedEvent = new PlannedEvent();
-                            plannedEvent.EventIndex = index++;
-
-                            //the GPS Tracker Id
+                            PlannedOffsettEvent plannedEvent = new PlannedOffsettEvent();
+                           
+                            //the GPS Tracker Id ---> this is a GeoJSON attribute you need to have in the original GeoJSON file!!!
                             plannedEvent.SourceId = gpsTrackFeature.Properties["TrackerId"] as string;
-                            plannedEvent.TrackName = plannedEvent.SourceId;
+                           
+                            //just a simple simulation of a random value of the battery of the tracker...
+                            var battery = rndMinBattery + ((rndMaxBattery - rndMinBattery) * rnd.NextDouble());
 
-                            plannedEvent.Payload = new GpsTrackerTelemetry() { Latitude = coordinate.Latitude, Longitude= coordinate.Longitude };
+                            //here i'm using a specific Class as Payload (GpsTrackerTelemetry) you can feed the simulation with the payload you need!
+                            plannedEvent.Payload = new GpsTrackerTelemetry() { Latitude = coordinate.Latitude, Longitude= coordinate.Longitude, Battery = battery };
 
-                            //sampling rate fixed to 5 seconds 
+                            //sampling rate fixed to 5 seconds as an example (eventually this could be obtained as an attribute of the GeoJSON)
                             plannedEvent.EventOffset =  TimeSpan.FromSeconds(5);
 
+                            //save into my plan into a Track for my GPS Tracker simulated device.  
+                            //if you have multiple Geometries in the GeoJSON you will end up having multiple parallel tracks 
+                            //that will be reproduced in parallel by the Simulation runner application
                             if (!gpsTrackerSimulationPlan.PlannedEventsTracks.ContainsKey(plannedEvent.SourceId))
                             {
-                                gpsTrackerSimulationPlan.PlannedEventsTracks.Add(plannedEvent.SourceId, new System.Collections.Generic.List<PlannedEvent>());
+                                gpsTrackerSimulationPlan.PlannedEventsTracks.Add(plannedEvent.SourceId, new System.Collections.Generic.List<BaseEvent>());
                             }
 
                             gpsTrackerSimulationPlan.PlannedEventsTracks[plannedEvent.SourceId].Add(plannedEvent); 

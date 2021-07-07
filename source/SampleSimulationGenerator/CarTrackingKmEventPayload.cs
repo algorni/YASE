@@ -2,8 +2,8 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace YASE.SampleSimulationApp
-{
+namespace SampleSimulationGenerator
+{ 
     public class CarTrackingKmEventPayload
     {
         public double KmIncremental { get; set; }

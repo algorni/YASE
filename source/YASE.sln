@@ -5,11 +5,11 @@ VisualStudioVersion = 16.0.30907.101
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YASE.Core", "YASE.Core\YASE.Core.csproj", "{A0760D7D-20AD-4B18-8935-ADD714A569B7}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YASE.SampleSimulationApp", "YASE.SampleSimulationApp\YASE.SampleSimulationApp.csproj", "{20E4AD35-4173-4B92-B8CA-A26E5DB35030}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SampleSimulationGenerator", "SampleSimulationGenerator\SampleSimulationGenerator.csproj", "{20E4AD35-4173-4B92-B8CA-A26E5DB35030}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YASE.PlaybackApp", "YASE.PlaybackApp\YASE.PlaybackApp.csproj", "{A4B22D23-146E-4844-BE0A-068D80B73944}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "YASEPlayback", "YASEPlayback\YASEPlayback.csproj", "{A4B22D23-146E-4844-BE0A-068D80B73944}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "YASE.SpatialSimulationApp", "YASE.SpatialSimulationApp\YASE.SpatialSimulationApp.csproj", "{8151D088-8391-4641-93D5-E0A41285FFD6}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SpatialSimulationConverter", "SpatialSimulationConverter\SpatialSimulationConverter.csproj", "{8151D088-8391-4641-93D5-E0A41285FFD6}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

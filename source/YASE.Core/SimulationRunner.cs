@@ -4,6 +4,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Linq;
+using YASE.Core.Entities;
 
 namespace YASE.Core
 {
@@ -18,7 +19,7 @@ namespace YASE.Core
         /// The delegate that the simulation running will call back is going to get a "IPlannedEvent" type
         /// </summary>
         /// <param name="generatedEvent"></param>
-        public delegate Task EventConsumerDelegate(PlannedEvent generatedEvent);
+        public delegate Task EventConsumerDelegate(GeneratedEvent generatedEvent);
 
 
 
@@ -45,7 +46,7 @@ namespace YASE.Core
         /// </summary>
         /// <param name="cancellationToken"></param>
         /// <returns></returns>
-        public async Task StartRunner(CancellationToken cancellationToken)
+        public async Task StartRunner(CancellationToken cancellationToken, string[] selectedTracks = null)
         {
             _cancellationToken = cancellationToken;
 
@@ -55,27 +56,41 @@ namespace YASE.Core
             //pre-build the sequence of the 
             int simulationLoop = _simulationPlan.SimulationLoops.HasValue ? _simulationPlan.SimulationLoops.Value : 1;
 
-            //the start time of the simulation is provided by the plan OR it's just the actual time 
-            DateTime lastSimulationStartTime = _simulationPlan.SimulationStartTime.HasValue ? _simulationPlan.SimulationStartTime.Value : getNowProxSec();
+            //the start time of the simulation is actual time at second precision...
+            DateTime lastSimulationStartTime = getNowProxSec();
                   
             for (int currentLoop = 0; currentLoop < simulationLoop; currentLoop++)
             {
-                List<Queue<PlannedEvent>> preGeneratedEventQueueByTrack = new List<Queue<PlannedEvent>>();
+                List<List<GeneratedEvent>> preGeneratedEventQueueByTrack = new List<List<GeneratedEvent>>();
                                                 
                 DateTime nextLoopLastSimulationStartTime = lastSimulationStartTime;
 
+                List<List<BaseEvent>> tracks = null;
 
-                foreach (var track in _simulationPlan.PlannedEventsTracks)
+                //a track list (selection of) is provided....  so just filter by the following track...
+                if (selectedTracks != null)
                 {
-                    List<PlannedEvent> preGeneratedEvents = buildEventsPipeline(
-                        _simulationPlan.PlanTiming, track.Value, lastSimulationStartTime, simulationRun, currentLoop);
+                    tracks = (from track in _simulationPlan.PlannedEventsTracks
+                              where selectedTracks.Contains(track.Key)
+                              select track.Value).ToList();
+                }
+                else
+                {
+                    tracks = (from track in _simulationPlan.PlannedEventsTracks
+                              select track.Value).ToList();
+                }
 
-                    var lastEventTime = preGeneratedEvents.Last().EventTime.Value;
+                foreach (var track in tracks)
+                {
+                    List<GeneratedEvent> preGeneratedEvents = buildEventsPipeline(
+                        _simulationPlan.PlanTiming, track, lastSimulationStartTime, simulationRun, currentLoop);
+
+                    var lastEventTime = preGeneratedEvents.Last().EventTime;
 
                     if (lastEventTime > nextLoopLastSimulationStartTime)
                         nextLoopLastSimulationStartTime = lastEventTime;
 
-                    preGeneratedEventQueueByTrack.Add(new Queue<PlannedEvent>(preGeneratedEvents));
+                    preGeneratedEventQueueByTrack.Add(preGeneratedEvents);
                 }
 
                 //ready for next loop in case...
@@ -102,45 +117,72 @@ namespace YASE.Core
         /// calculate the generated event list!
         /// </summary>
         /// <returns></returns>
-        private List<PlannedEvent> buildEventsPipeline(PlanTimingEnum planTiming, List<PlannedEvent> plannedEventTrack, DateTime currentsimulationTime, Guid simulationRun, int? simulationLoop)
+        private List<GeneratedEvent> buildEventsPipeline(PlanTimingEnum planTiming, List<BaseEvent> plannedEventTrack, DateTime currentsimulationTime, Guid simulationRun, int? simulationLoop)
         {
-            List<PlannedEvent> preGeneratedEvents = null;
+            List<GeneratedEvent> preGeneratedEvents = new List<GeneratedEvent>();
 
             if (planTiming == PlanTimingEnum.OffsetFromSimulationStart)
             {
-                preGeneratedEvents = new List<PlannedEvent>();
-              
                 //now loop over all the planned Items and generate the EventTime and OriginalEventTime according to their offsett & the simulation start time
+
+                int index = 0; 
 
                 foreach (var simulationItem in plannedEventTrack)
                 {
-                    if (!simulationItem.EventOffset.HasValue)
+                    if (!(simulationItem is PlannedOffsettEvent))
                     {
                         throw new ApplicationException("Malformed PlannedEvent according to teh Simulation plan it should have the EventOffsett property!");
                     }
+                                        
+                    PlannedOffsettEvent plannedOffsettEvent = simulationItem as PlannedOffsettEvent;
+
+                    GeneratedEvent generatedEvent = new GeneratedEvent(plannedOffsettEvent);
+
 
                     //calculate event time
-                    var eventTime = currentsimulationTime + simulationItem.EventOffset.Value;
+                    var eventTime = currentsimulationTime + plannedOffsettEvent.EventOffset;
                     
                     //update the current simulation time up to the current event
                     currentsimulationTime = eventTime;
 
                     //update the simulated event properties
-                    simulationItem.EventTime = eventTime;
-                    simulationItem.OriginalEventTime = eventTime;
-
-                    simulationItem.SimulationRun = simulationRun;
-                    simulationItem.SimulationLoop = simulationLoop.HasValue ? simulationLoop : (int?)null;
+                    generatedEvent.EventTime = eventTime;
+                    generatedEvent.CurrentSimulationRun = simulationRun;
+                    generatedEvent.CurrentSimulationLoop = simulationLoop.HasValue ? simulationLoop.Value : 0;
+                    
+                    generatedEvent.EventIndex = index++;
 
                     //and add into the 
-                    preGeneratedEvents.Add(simulationItem);
+                    preGeneratedEvents.Add(generatedEvent);
                 }
             }
 
             if (planTiming == PlanTimingEnum.ExactTimeAccordingToPlan)
             {
+                int index = 0;
+
                 //this is the simple one...   planned event should have already their time configured to be used.
-                preGeneratedEvents = plannedEventTrack;
+                foreach (var simulationItem in plannedEventTrack)
+                {
+                    if (!(simulationItem is PlannedTimedEvent))
+                    {
+                        throw new ApplicationException("Malformed PlannedEvent according to teh Simulation plan it should have the EventOffsett property!");
+                    }
+
+                    PlannedTimedEvent plannedTimedEvent = simulationItem as PlannedTimedEvent;
+
+                    GeneratedEvent generatedEvent = new GeneratedEvent(plannedTimedEvent);
+
+                    generatedEvent.CurrentSimulationRun = simulationRun;
+
+                    //this should be always 0  BTW....
+                    generatedEvent.CurrentSimulationLoop = simulationLoop.HasValue ? simulationLoop.Value : 0;
+
+                    generatedEvent.EventIndex = index++;
+
+                    //and add into the 
+                    preGeneratedEvents.Add(generatedEvent);
+                }
             }
 
             return preGeneratedEvents;
@@ -155,33 +197,36 @@ namespace YASE.Core
             return retNow;
         }
 
-        private void playbackEventPipeline(Queue<PlannedEvent> preGeneratedEventQueue)
+        private void playbackEventPipeline(List<GeneratedEvent> preGeneratedEventQueue)
         {
-            //we look for event in the "past" respect Utc Now and we generate all of them immediately (with 25ms of delay to avoid huring downstream services)
-            PlannedEvent preGeneratedEvent = null;
-
-            while (preGeneratedEventQueue.Count > 0)
+            if (preGeneratedEventQueue == null || preGeneratedEventQueue.Count == 0)
+                return;
+              
+            GeneratedEvent generatedEvent = null;
+  
+            for (int index=0; index < preGeneratedEventQueue.Count; index++)
             {
                 if (_cancellationToken.IsCancellationRequested)
                     break;
 
-                preGeneratedEvent = preGeneratedEventQueue.Dequeue();
+                DateTime now = DateTime.UtcNow;
 
-                if (preGeneratedEvent.EventTime.Value < DateTime.UtcNow)
+                generatedEvent = preGeneratedEventQueue[index];
+
+                if (generatedEvent.EventTime > now)
                 {
-                    //we continue to generate events till we reach "NOW"  from that moment in the tiem we will use the real offsett
-                    Task.Delay(25).Wait();
+                    //wait until the event timing...
+                    Task.Delay(generatedEvent.EventTime - now).Wait();
                 }
                 else
                 {
-                    //wait until the next event offsett.
-                    Task.Delay(preGeneratedEvent.EventOffset.Value).Wait();
+                    Task.Delay(250).Wait();
                 }
 
                 try
                 {
                     //just fire the delegate! 
-                    _eventConsumerDelegate(preGeneratedEvent).Wait();
+                    _eventConsumerDelegate(generatedEvent).Wait();
                 }
                 catch (Exception ex)
                 {

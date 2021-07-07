@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text;
 
-namespace YASE.SpatialSimulationApp
+namespace SpatialSimulationConverter
 {
     public class GpsTrackerTelemetry
     {

@@ -4,20 +4,20 @@ using System.Runtime.Loader;
 using System.Threading;
 using System.Threading.Tasks;
 using YASE.Core;
+using YASE.Core.Entities;
 
-namespace YASE.SampleSimulationApp
+namespace SampleSimulationGenerator
 {
     class Program
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("Hello Simulation!");
-
+            Console.WriteLine("Hello Simulation Plan builder!");
+            Console.WriteLine("------------------------------");
 
             SimulationPlan simulationPlan = createOneTimeSimulationPlan();
             
             var simulationPlanJson = simulationPlan.GetJSON();
-
 
             File.WriteAllText("c:\\tmp\\simulation.json", simulationPlanJson);
         }
@@ -53,20 +53,17 @@ namespace YASE.SampleSimulationApp
             for (int index = 0; index < numberOfItem; index++)
             {
                 //CarTrackingKmEvent plannedEvent = new CarTrackingKmEvent();
-                PlannedEvent plannedEvent = new PlannedEvent();
-                plannedEvent.EventIndex = index;
-              
+                PlannedOffsettEvent plannedEvent = new PlannedOffsettEvent();
+
                 plannedEvent.SourceId = "SimulatedCar" + rnd.Next(carIdMin, carIdMax).ToString();
 
                 plannedEvent.Payload = new CarTrackingKmEventPayload() { KmIncremental = rndMinKm + ((rndMaxKm - rndMinKm) * rnd.NextDouble()) };
 
                 plannedEvent.EventOffset = new TimeSpan(rndMinSpan.Ticks + (long)((rndMaxSpan.Ticks - rndMinSpan.Ticks) * rnd.NextDouble()));
 
-                plannedEvent.TrackName = "SimulatedCars";
-
                 if (!carTrackingKmSimulationPlan.PlannedEventsTracks.ContainsKey("SimulatedCars"))
                 {
-                    carTrackingKmSimulationPlan.PlannedEventsTracks.Add("SimulatedCars", new System.Collections.Generic.List<PlannedEvent>());
+                    carTrackingKmSimulationPlan.PlannedEventsTracks.Add("SimulatedCars", new System.Collections.Generic.List<BaseEvent>());
                 }
 
                 carTrackingKmSimulationPlan.PlannedEventsTracks["SimulatedCars"].Add(plannedEvent);
