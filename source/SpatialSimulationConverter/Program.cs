@@ -16,16 +16,19 @@ namespace SpatialSimulationConverter
         {
             Console.WriteLine("Hello SpatialSimulationConverter!");
             Console.WriteLine("------------------------------");
+            Console.WriteLine();
 
-           configuration = new ConfigurationBuilder()
+            configuration = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
             .AddEnvironmentVariables()
             .AddCommandLine(args)
             .Build();
 
             string geoJsonFile = configuration.GetValue<string>("geoJsonFile");
+            Console.WriteLine($"Opening the GeoJSON file: {geoJsonFile}");
 
             string simulationPlanFile = configuration.GetValue<string>("simulationPlanFile");
+            Console.WriteLine($"Output Simulation Plan will be saved as: {simulationPlanFile}");
 
             var geoJson = File.ReadAllText(geoJsonFile);
 
@@ -33,6 +36,8 @@ namespace SpatialSimulationConverter
             FeatureCollection featureCollection = JsonConvert.DeserializeObject<FeatureCollection>(geoJson);
 
             SimulationPlan simulationPlan = createOneTimeSimulationPlan(featureCollection);
+
+            Console.WriteLine("Simulation Plan generated");
 
             var simulationPlanJson = simulationPlan.GetJSON();
 
@@ -42,24 +47,22 @@ namespace SpatialSimulationConverter
 
         /// <summary>
         /// This is a sample code to generate a simulation...   that can be playbacked by the runner
+        /// 
+        /// The overall story is: i need a GeoJSON with MultilineString geometries and an attribute (for each geometry) named "TrackerId" 
+        /// The Tracker Id will be used as both source id and Track name in the simulation.
+        /// Each GPS position will be emitted with 5 seconds of delay beween each other. 
         /// </summary>
         /// <returns></returns>
         //private static SimulationPlan<CarTrackingKmEvent> createOneTimeSimulationPlan()
         private static SimulationPlan createOneTimeSimulationPlan(FeatureCollection featureCollection)
-        {         
-            double rndMinBattery = 4.0;
-            double rndMaxBattery = 3.0;
-
-            Random rnd = new Random();
-
+        {                   
             //create a simulation plan            
             SimulationPlan gpsTrackerSimulationPlan = new SimulationPlan();         
 
             gpsTrackerSimulationPlan.PlanTiming = PlanTimingEnum.OffsetFromSimulationStart;
             
             foreach (var gpsTrackFeature in featureCollection.Features)
-            {
-               
+            {               
                 //the structure of a Line GeoJSON from QGIS include a MultiLineString
                 if (gpsTrackFeature.Geometry is GeoJSON.Net.Geometry.MultiLineString)
                 {
@@ -76,12 +79,10 @@ namespace SpatialSimulationConverter
                            
                             //the GPS Tracker Id ---> this is a GeoJSON attribute you need to have in the original GeoJSON file!!!
                             plannedEvent.SourceId = gpsTrackFeature.Properties["TrackerId"] as string;
-                           
-                            //just a simple simulation of a random value of the battery of the tracker...
-                            var battery = rndMinBattery + ((rndMaxBattery - rndMinBattery) * rnd.NextDouble());
-
+                          
                             //here i'm using a specific Class as Payload (GpsTrackerTelemetry) you can feed the simulation with the payload you need!
-                            plannedEvent.Payload = new GpsTrackerTelemetry() { Latitude = coordinate.Latitude, Longitude= coordinate.Longitude, Battery = battery };
+                            //if you want to generate additional payload just change this code here!!
+                            plannedEvent.Payload = new GpsTrackerTelemetry() { Latitude = coordinate.Latitude, Longitude= coordinate.Longitude};
 
                             //sampling rate fixed to 5 seconds as an example (eventually this could be obtained as an attribute of the GeoJSON)
                             plannedEvent.EventOffset =  TimeSpan.FromSeconds(5);
