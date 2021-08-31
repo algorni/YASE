@@ -51,15 +51,18 @@ namespace YASEPlayback
                 LongVersionGetter = () => GetFileVersion(typeof(Program).Assembly, 4)
             };
 
-            simulationPlanArg = commandLine.Option("-s|--simulationPlan", "Simulation plan in YASEON format.", CommandOptionType.SingleValue);
+            simulationPlanArg = commandLine.Option("-s | --simulationPlan", "Simulation plan in YASEON format.", CommandOptionType.SingleValue);
 
-            eventHubConnectionStringArg = commandLine.Option("-eh|--eventHubConnectionString", "Event Hub Connection string", CommandOptionType.SingleValue);
+            eventHubConnectionStringArg = commandLine.Option("-eh | --eventHubConnectionString", "Event Hub Connection string", CommandOptionType.SingleValue);
 
 
             commandLine.Command("listTrack", c =>
             {
                 c.HelpOption("-?|-h|--help");
                 c.ExtendedHelpText = "Shows the list of track in the simulation plan";
+
+                //simulationPlanArg = c.Argument("s", "Simulation Plan");
+
                 c.OnExecute(() => executeListTrack());
             });
 
@@ -100,7 +103,7 @@ namespace YASEPlayback
             }
             catch (Exception ex)
             {
-                Console.WriteLine($"There was an error while executing your command line");
+                Console.WriteLine($"There was an error while executing your command line.\n{ex.ToString()}");
             }
 
             Console.WriteLine("\n\nCiao");
@@ -272,7 +275,7 @@ namespace YASEPlayback
             if ((eventHubConnectionStringArg != null) && (eventHubConnectionStringArg.HasValue()))
             {
                 //give precedence to the command line
-               eventHubConnectionString = simulationPlanArg.Value();
+               eventHubConnectionString = eventHubConnectionStringArg.Value();
             }
             else
             {
@@ -285,7 +288,7 @@ namespace YASEPlayback
                 Console.WriteLine("This tool requires a <eventHubConnectionString> parameter to connect to a specific Event Hub topic.");
                 return null;
             }
-
+          
             return eventHubConnectionString;
         }
 
